@@ -1,5 +1,11 @@
-///* global window */
-//
-//;(function (win) {
-//    
-//}(window));
+/* global window */
+
+;(function (win) {
+    'use strict';
+    
+    win.Okra = {
+        inlet: function () {
+            
+        }
+    };
+}(window));
