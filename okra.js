@@ -1,11 +1,16 @@
 /* global window, document */
 
-;
-(function(win, doc) {
+;(function(win, doc) {
     'use strict';
+    
+    // TODO: Add `on` functionality to listen to re-occurring events
+    // TODO: Support `set` functionality to send data
+    // TODO: Support `call` functionality to denote calling
 
     var _listeners = {};
     var _providers = {};
+
+    // TODO: Error handling
 
     var _frameByName = function(frameName) {
         // Avoid memory garbage
@@ -13,11 +18,15 @@
         if (frameName === '_parent') {
             return window.parent;
         } else {
-            // Chrome only
-            var frame = window.frames[frameName];
+            // TODO: Filter frames by name as well
+            var frame = document.getElementsByName(frameName)[0];
+            
+            if (!frame) {
+                return null;
+            }
 
-            if ("[object Window]" === ("" + frame)) {
-                return frame;
+            if (frame.contentWindow) {
+                return frame.contentWindow;
             } else {
                 return null;
             }
@@ -111,8 +120,6 @@
     };
 
     window.addEventListener('message', function (event) {
-        console.log(event.data, event);
-    
         if (event.data) {
             if (event.data.type === 'request') {
                 _handleRequest(event);
@@ -120,31 +127,97 @@
                 _notifyListeners(event);
             }
         }
-    }, false);    
+    }, false);
+    
+    var _referrerToOrigin = function () {
+        if (!document.referrer) {
+            return null;
+        }
+    
+        var a = document.createElement('a');
+        a.href = document.referrer;
+        return a.origin;
+    }
+    
+    // Send `childLoaded` event to the parent
+    if (window !== window.parent) {
+        // TODO: Check for possible security issues in allowing 
+        //       referrer blindly
+        // TODO: Convert to a faster event, such as DOMReady
+        window.addEventListener('load', function () {
+            window.parent.postMessage({
+               type: "childLoaded"
+            }, _referrerToOrigin());
+        }, false);
+    }
     
     var createInlet = function(frameName, origin) {
-        return {
-            get: function(valueName, cb) {
-                // TODO: Check for action??
-                var nounce = _generateNounce();
-
-                _listeners[origin] = _listeners[origin] || {};
-
-                _listeners[origin][nounce] = function(data) {
-                    cb(data.value);
-                    delete _listeners[origin][nounce];
-                };
-
-                _listeners[origin][nounce].nounce = nounce;
-                _listeners[origin][nounce].frameName = frameName;
-
-                _frameByName(frameName).postMessage({
-                    type: 'request',
-                    action: 'get',
-                    name: valueName,
-                    nounce: nounce
-                }, origin);
+        var _messagesQueue = [];
+        
+        // TODO: Really? that's a lousy check
+        var _isFrameLoaded = window !== window.parent;
+        
+        // TODO: Find a better name for this
+        var _realPostMessage = function (message) {
+            // TODO: Rename `_frameByName` to `_windowByFrameName`
+            var frame = _frameByName(frameName);
+            frame.postMessage(message, origin);
+        };
+    
+        var _postMessage = function (message) {
+            if (_isFrameLoaded) {
+                _realPostMessage(message);
+            } else {
+                _messagesQueue.push(message);
             }
+        };
+        
+        // Detect a childLoad event
+        var _loadListener = function (event) {
+            var frameWin = _frameByName(frameName);
+            if (event.origin === origin && event.source === frameWin) {
+                if (event.data && 'childLoaded' === event.data.type) {
+                    while (_messagesQueue.length) {
+                        var message = _messagesQueue.pop();
+                        _realPostMessage(message);                    
+                    }
+                
+                    window.removeEventListener(
+                        'message', 
+                        _loadListener, 
+                        false
+                    );                
+                }                
+            }
+        };
+        
+        window.addEventListener('message', _loadListener, false);  
+    
+    
+        var _getValue = function (valueName, cb) {
+            // TODO: Check for action??
+            var nounce = _generateNounce();
+
+            _listeners[origin] = _listeners[origin] || {};
+
+            _listeners[origin][nounce] = function(data) {
+                cb(data.value);
+                delete _listeners[origin][nounce];
+            };
+
+            _listeners[origin][nounce].nounce = nounce;
+            _listeners[origin][nounce].frameName = frameName;
+            
+            _postMessage({
+                type: 'request',
+                action: 'get',
+                name: valueName,
+                nounce: nounce
+            });
+        };
+            
+        return {
+            get: _getValue
         };
     };
 
@@ -156,6 +229,10 @@
             // TODO: Support origin globe
             // TODO: Support `deny` and `destroy` methods
             allow: function (origin) {
+                if (origin === document.referrer) {
+                    origin = _referrerToOrigin();
+                }
+            
                 _allowedOrigins[origin] = true;
                 return provider; // Allow subsequent `allow()` calls
             },
