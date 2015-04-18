@@ -2,10 +2,10 @@
 
 ;(function(win, doc) {
     'use strict';
-    
-    // TODO: Add `on` functionality to listen to re-occurring events
+
     // TODO: Support `set` functionality to send data
     // TODO: Support `call` functionality to denote calling
+    // TODO: Support error handling
 
     var _listeners = {};
     var _providers = {};
@@ -14,13 +14,13 @@
 
     var _frameByName = function(frameName) {
         // Avoid memory garbage
-        
+
         if (frameName === '_parent') {
             return window.parent;
         } else {
             // TODO: Filter frames by name as well
             var frame = document.getElementsByName(frameName)[0];
-            
+
             if (!frame) {
                 return null;
             }
@@ -49,7 +49,7 @@
 
     var _notifyListeners = function (event) {
         if (!_listeners.hasOwnProperty(event.origin)) {
-            console.error('Cannot verify that the origin message is actually expected');            
+            console.error('Cannot verify that the origin message is actually expected');
             return;
         }
 
@@ -64,59 +64,65 @@
             console.error('Cannot verify that the nonce exists');
             return;
         }
-                
+
         var listener = _listeners[event.origin][nounce];
-        
+
         if (event.source !== _frameByName(listener.frameName)) {
             console.error('Cannot verify that the exact frame is the one sending the event');
             return;
         }
-        
+
         listener(event.data);
     };
-    
-    var _handleRequest = function (event) {               
+
+    var _handleRequest = function (event) {
         if (!event.data || !event.data.name) {
             console.error('Request don`t have valid handler name');
             return;
         }
-        
+
         // Wrap this check in a function
-        if (!_providers.hasOwnProperty(event.data.name) 
-            || !_providers[event.data.name]) {
+        if (!_providers.hasOwnProperty(event.data.name) ||
+            !_providers[event.data.name]) {
             // TODO: Add the parameters to the error log
             console.error('No such provider was found');
             return;
         }
-        
+
         var providerVariants = _providers[event.data.name];
-        
-        if (!providerVariants.hasOwnProperty(event.data.action) 
-            || !providerVariants[event.data.action]) {
+
+        if (!providerVariants.hasOwnProperty(event.data.action) ||
+            !providerVariants[event.data.action]) {
             console.error('No such provider variant was found');
             return;
         }
-        
+
         var provider = providerVariants[event.data.action];
-        
+
         if (!provider.isAllowed(event.origin)) {
             console.error('Origin is not allowed for this provider');
-            return;   
+            return;
         }
-        
-        if ("string" !== typeof event.data.nounce
-            && event.data.nounce.indexOf('_okra_') !== 0) {
-            console.error('Invalid nonce has been provided');
-            return;   
+
+        if ('set' === event.data.action) {
+            provider.callback(event.data.value);
+        } else if ('get' === event.data.action) {
+            if ("string" !== typeof event.data.nounce &&
+                event.data.nounce.indexOf('_okra_') !== 0) {
+                console.error('Invalid nonce has been provided');
+                return;
+            }
+
+            var value = provider.callback();
+            event.source.postMessage({
+                type: 'response',
+                action: 'get',
+                value: value,
+                nounce: event.data.nounce
+            }, event.origin);        
+        } else {
+            console.error('Action was not recognized', event.data.action);
         }
-        
-        var value = provider.callback();
-        event.source.postMessage({
-            type: 'response',
-            action: 'get',
-            value: value,
-            nounce: event.data.nounce
-        }, event.origin);
     };
 
     window.addEventListener('message', function (event) {
@@ -128,20 +134,20 @@
             }
         }
     }, false);
-    
+
     var _referrerToOrigin = function () {
         if (!document.referrer) {
             return null;
         }
-    
+
         var a = document.createElement('a');
         a.href = document.referrer;
         return a.origin;
-    }
-    
+    };
+
     // Send `childLoaded` event to the parent
     if (window !== window.parent) {
-        // TODO: Check for possible security issues in allowing 
+        // TODO: Check for possible security issues in allowing
         //       referrer blindly
         // TODO: Convert to a faster event, such as DOMReady
         window.addEventListener('load', function () {
@@ -150,20 +156,20 @@
             }, _referrerToOrigin());
         }, false);
     }
-    
+
     var createInlet = function(frameName, origin) {
         var _messagesQueue = [];
-        
+
         // TODO: Really? that's a lousy check
         var _isFrameLoaded = window !== window.parent;
-        
+
         // TODO: Find a better name for this
         var _realPostMessage = function (message) {
             // TODO: Rename `_frameByName` to `_windowByFrameName`
             var frame = _frameByName(frameName);
             frame.postMessage(message, origin);
         };
-    
+
         var _postMessage = function (message) {
             if (_isFrameLoaded) {
                 _realPostMessage(message);
@@ -171,7 +177,7 @@
                 _messagesQueue.push(message);
             }
         };
-        
+
         // Detect a childLoad event
         var _loadListener = function (event) {
             var frameWin = _frameByName(frameName);
@@ -179,21 +185,23 @@
                 if (event.data && 'childLoaded' === event.data.type) {
                     while (_messagesQueue.length) {
                         var message = _messagesQueue.pop();
-                        _realPostMessage(message);                    
+                        _realPostMessage(message);
                     }
-                
+                    
+                    _isFrameLoaded = true;
+
                     window.removeEventListener(
-                        'message', 
-                        _loadListener, 
+                        'message',
+                        _loadListener,
                         false
-                    );                
-                }                
+                    );
+                }
             }
         };
-        
-        window.addEventListener('message', _loadListener, false);  
-    
-    
+
+        window.addEventListener('message', _loadListener, false);
+
+
         var _getValue = function (valueName, cb) {
             // TODO: Check for action??
             var nounce = _generateNounce();
@@ -207,7 +215,7 @@
 
             _listeners[origin][nounce].nounce = nounce;
             _listeners[origin][nounce].frameName = frameName;
-            
+
             _postMessage({
                 type: 'request',
                 action: 'get',
@@ -215,9 +223,20 @@
                 nounce: nounce
             });
         };
-            
+
+        
+        var _setValue = function (valueName, value) {
+            _postMessage({
+                type: 'request',
+                action: 'set',
+                name: valueName,
+                value: value
+            });
+        };
+
         return {
-            get: _getValue
+            get: _getValue,
+            set: _setValue
         };
     };
 
@@ -232,7 +251,7 @@
                 if (origin === document.referrer) {
                     origin = _referrerToOrigin();
                 }
-            
+
                 _allowedOrigins[origin] = true;
                 return provider; // Allow subsequent `allow()` calls
             },
@@ -244,10 +263,10 @@
                 }
             }
         };
-        
+
         _providers[name] = _providers[name] || {};
         _providers[name][action] = provider;
-        
+
         return provider;
     };
 
