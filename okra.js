@@ -223,6 +223,25 @@
                 nounce: nounce
             });
         };
+        
+        
+        // TODO: Support listening to an event only once
+        var _onEvent = function (eventName, cb) {
+            _listeners[origin] = _listeners[origin] || {};
+
+            _listeners[origin][eventName] = function (data) {
+                cb(data.value);
+            };
+
+            _listeners[origin][eventName].frameName = frameName;
+
+            // TODO: Support unregistering an event
+            _postMessage({
+                type: 'request',
+                action: 'event',
+                name: valueName
+            });
+        };
 
         
         var _setValue = function (valueName, value) {
@@ -236,7 +255,8 @@
 
         return {
             get: _getValue,
-            set: _setValue
+            set: _setValue,
+            on:  _onEvent
         };
     };
 
@@ -284,6 +304,18 @@
                     });
                 }
             };
+            
+            // TODO: What happens to the registrar if the frame gets removed 
+            //       from the DOM?
+            // TODO: Add ability to unregister and event
+            provider.addListener = function (frame, origin) {
+                // TODO: Prevent adding duplicate entries
+                // TODO: Check if the origin is allowed
+                _registeredListeners.push({
+                    frame: frame,
+                    origin: origin
+                });
+            };
         } else if (action === 'get' || action === 'set') {
             provider.callback = cb;
         } else {
@@ -304,3 +336,4 @@
 
     win.Okra = Okra;
 }(window, document));
+
