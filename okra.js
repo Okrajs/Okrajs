@@ -242,9 +242,9 @@
 
     var createProvider = function (action, name, cb) {
         var _allowedOrigins = {};
-
+        var _registeredListeners = [];
+        
         var provider = {
-            callback: cb,
             // TODO: Support origin globe
             // TODO: Support `deny` and `destroy` methods
             allow: function (origin) {
@@ -267,6 +267,29 @@
                 }
             }
         };
+        
+        if (action === 'event') {
+            provider.emit = function (data) {
+                if ('undefined' === typeof data) {
+                    data = {};
+                }
+                
+                for (var i=0; i < _registeredListeners.length; i+=1) {
+                    var listener = _registeredListeners[i];
+                    _postMessage({
+                        type: 'response',
+                        action: 'event',
+                        name: name,
+                        value: data
+                    });
+                }
+            };
+        } else if (action === 'get' || action === 'set') {
+            provider.callback = cb;
+        } else {
+            console.error('Unsupported Okra action: `' + action + '`');
+            return;
+        }
 
         _providers[name] = _providers[name] || {};
         _providers[name][action] = provider;
