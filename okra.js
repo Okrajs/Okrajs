@@ -248,12 +248,16 @@
             // TODO: Support origin globe
             // TODO: Support `deny` and `destroy` methods
             allow: function (origin) {
-                if (origin === document.referrer) {
-                    origin = _referrerToOrigin();
-                }
-
                 _allowedOrigins[origin] = true;
                 return provider; // Allow subsequent `allow()` calls
+            },
+            // TODO: This is vague and may allow security issues, such as
+            //       allowing the redirector of an iframe to access a page? 
+            //       Seems dangerous, perhaps it should be limited to the 
+            //       Referrer when it is the `window.parent`. It could be even 
+            //       renamed to `allowReferrerTop()`
+            allowReferrer: function () {
+                return provider.allow(_referrerToOrigin());
             },
             isAllowed: function (origin) {
                 if (origin && _allowedOrigins.hasOwnProperty(origin)) {
