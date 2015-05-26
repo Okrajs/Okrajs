@@ -119,7 +119,9 @@
                 action: 'get',
                 value: value,
                 nounce: event.data.nounce
-            }, event.origin);        
+            }, event.origin);
+        } else if ('event' === event.data.action) {
+            provider.addListener(event.source, event.origin);
         } else {
             console.error('Action was not recognized', event.data.action);
         }
@@ -239,7 +241,7 @@
             _postMessage({
                 type: 'request',
                 action: 'event',
-                name: valueName
+                name: eventName
             });
         };
 
@@ -294,7 +296,7 @@
                     data = {};
                 }
                 
-                for (var i=0; i < _registeredListeners.length; i+=1) {
+                for (var i=0; i<_registeredListeners.length; i+=1) {
                     var listener = _registeredListeners[i];
                     _postMessage({
                         type: 'response',
@@ -309,8 +311,15 @@
             //       from the DOM?
             // TODO: Add ability to unregister and event
             provider.addListener = function (frame, origin) {
-                // TODO: Prevent adding duplicate entries
-                // TODO: Check if the origin is allowed
+                for(var i=0; i<_registeredListeners.length; i+=1) {
+                    var listener = _registeredListeners[i];
+                    
+                    if (listener.frame === frame && 
+                        listener.origin === origin) {
+                        return; // Prevent adding duplicate entries
+                    }
+                }
+                
                 _registeredListeners.push({
                     frame: frame,
                     origin: origin
