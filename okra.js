@@ -53,7 +53,7 @@
             return;
         }
         
-        if (event.data && 'get' === event.data.action) {
+        if (event.data && ('get' === event.data.action || 'call' === event.data.action)) {
             var nounce = event.data.nounce;
 
             if (!nounce || nounce.indexOf('_okra_') !== 0) {
@@ -134,17 +134,19 @@
 
         if ('set' === event.data.action) {
             provider.callback(event.data.value);
-        } else if ('get' === event.data.action) {
+        } else if ('get' === event.data.action || 'call' === event.data.action) {
             if ("string" !== typeof event.data.nounce &&
                 event.data.nounce.indexOf('_okra_') !== 0) {
                 console.error('Invalid nonce has been provided');
                 return;
             }
 
+            // TODO: Support fully `async` call and `get` by using callbacks
+            //       instead of `return`
             var value = provider.callback();
             event.source.postMessage({
                 type: 'response',
-                action: 'get',
+                action: event.data.action,
                 value: value,
                 nounce: event.data.nounce
             }, event.origin);
@@ -230,16 +232,18 @@
         };
 
         window.addEventListener('message', _loadListener, false);
-
-
-        var _getValue = function (valueName, cb) {
+        
+        var _getOrCall = function (action, name, cb) {
             // TODO: Check for action??
             var nounce = _generateNounce();
 
             _listeners[origin] = _listeners[origin] || {};
 
             _listeners[origin][nounce] = function(data) {
-                cb(data.value);
+                if (cb) {
+                    cb(data.value);
+                }
+                
                 delete _listeners[origin][nounce];
             };
 
@@ -248,8 +252,8 @@
 
             _postMessage({
                 type: 'request',
-                action: 'get',
-                name: valueName,
+                action: action,
+                name: name,
                 nounce: nounce
             });
         };
@@ -285,7 +289,13 @@
         };
 
         return {
-            get: _getValue,
+            get: function (valueName, cb) {
+                _getOrCall('get', valueName, cb);
+            },
+            // TODO: Support the `apply` dialect
+            call: function (functionName, cb) {
+                _getOrCall('call', functionName, cb);
+            },
             set: _setValue,
             on:  _onEvent
         };
@@ -355,7 +365,7 @@
                     origin: origin
                 });
             };
-        } else if (action === 'get' || action === 'set') {
+        } else if (action === 'get' || action === 'set'  || action === 'call') {
             provider.callback = cb;
         } else {
             console.error('Unsupported Okra action: `' + action + '`');
