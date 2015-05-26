@@ -298,12 +298,12 @@
                 
                 for (var i=0; i<_registeredListeners.length; i+=1) {
                     var listener = _registeredListeners[i];
-                    _postMessage({
+                    listener.frame.postMessage({
                         type: 'response',
                         action: 'event',
                         name: name,
                         value: data
-                    });
+                    }, listener.origin);
                 }
             };
             
