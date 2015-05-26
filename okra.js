@@ -52,27 +52,55 @@
             console.error('Cannot verify that the origin message is actually expected');
             return;
         }
+        
+        if (event.data && 'get' === event.data.action) {
+            var nounce = event.data.nounce;
 
-        var nounce = event.data.nounce;
+            if (!nounce || nounce.indexOf('_okra_') !== 0) {
+                console.error('Cannot verify that it is a valid listener');
+                return;
+            }
 
-        if (!nounce || nounce.indexOf('_okra_') !== 0) {
-            console.error('Cannot verify that it is a valid listener');
-            return;
+            if (!_listeners[event.origin].hasOwnProperty(nounce)) {
+                console.error('Cannot verify that the nonce exists');
+                return;
+            }
+
+            var listener = _listeners[event.origin][nounce];
+
+            if (event.source !== _frameByName(listener.frameName)) {
+                console.error('Cannot verify that the exact frame is the one sending the event');
+                return;
+            }
+
+            listener(event.data);
+        } else if (event.data && 'event' === event.data.action) {
+            // TODO: Check for malicious input?
+            var eventName = event.data.name;
+            if (!_listeners[event.origin].hasOwnProperty(eventName)) {
+                console.error('Cannot verify that the nonce exists');
+                return;
+            }
+            
+            var eventListener = _listeners[event.origin][eventName];
+            
+            if (!eventListener.apply) {
+                console.error(
+                    'The event listener of', 
+                    event.origin, 
+                    eventName,
+                    'isn`t a function'
+               );
+               
+               return;
+            }
+            
+            eventListener(event.data);
+        } else {
+            console.error(
+                'Unsupported Okra action: `' + event.data.action + '`'
+            );
         }
-
-        if (!_listeners[event.origin].hasOwnProperty(nounce)) {
-            console.error('Cannot verify that the nonce exists');
-            return;
-        }
-
-        var listener = _listeners[event.origin][nounce];
-
-        if (event.source !== _frameByName(listener.frameName)) {
-            console.error('Cannot verify that the exact frame is the one sending the event');
-            return;
-        }
-
-        listener(event.data);
     };
 
     var _handleRequest = function (event) {
@@ -228,6 +256,7 @@
         
         
         // TODO: Support listening to an event only once
+        // TODO: Support multiple listeners?
         var _onEvent = function (eventName, cb) {
             _listeners[origin] = _listeners[origin] || {};
 
@@ -310,6 +339,7 @@
             // TODO: What happens to the registrar if the frame gets removed 
             //       from the DOM?
             // TODO: Add ability to unregister and event
+            // TODO: Rename to differentiate between the two types of listeners
             provider.addListener = function (frame, origin) {
                 for(var i=0; i<_registeredListeners.length; i+=1) {
                     var listener = _registeredListeners[i];
