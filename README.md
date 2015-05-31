@@ -2,6 +2,16 @@
 Simple Access Control for `postMessage` API in Unmodified Browsers.
 
 
+##Introduction
+A Mashup is a web site combining content from multiple sources. Where the web 
+site is called the integrator, and other components are the gadgets. We 
+propose a framework to mediate cross-domain communications in web mashups. 
+The framework is based on mutual suspicion. It is an abstraction layer over 
+the low-level \texttt{postMessage} application programming interface
+ to ease deeper integration between 
+cross-origin component while maintaining a least privileged communications 
+through whitelisted access control.
+
 ##How to Use it
 First install it using bower:
 
@@ -104,3 +114,13 @@ To override the timing of the event, you can use `Okra.useManualLoadEvent()` and
     window.onYouTubePlayerReady = function () {
         Okra.emitLoadEvent();
     };
+
+
+##Sample Projects:
+Currently there are two proof of concepts for Okra:
+
+ - The basic demo app: [http://okra-demo-app.omardo.com/](http://okra-demo-app.omardo.com)  and [https://github.com/Okrajs/okra-demo-app](Okrajs/okra-demo-app)
+    * The video site: [https://github.com/Okrajs/videosforyou.in](Okrajs/videosforyou.in) and <http://ovideosforyou.in>
+    * The social site: [https://github.com/Okrajs/socialnetwork1.eu](Okrajs/socialnetwork1.eu) and <http://osocialnetwork1.eu>
+    * The analytics site: [https://github.com/Okrajs/anayltics.work](Okrajs/anayltics.work) and <http://oanayltics.work>
+ - A working test with a YouTube video: <http://okra-demo-app.omardo.com/youtube.html>
