@@ -7,7 +7,7 @@ A Mashup is a web site combining content from multiple sources. Where the web
 site is called the integrator, and other components are the gadgets. We 
 propose a framework to mediate cross-domain communications in web mashups. 
 The framework is based on mutual suspicion. It is an abstraction layer over 
-the low-level \texttt{postMessage} application programming interface
+the low-level `postMessage` application programming interface
  to ease deeper integration between 
 cross-origin component while maintaining a least privileged communications 
 through whitelisted access control.
