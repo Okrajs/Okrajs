@@ -166,7 +166,7 @@
     }, false);
 
     var _referrerToOrigin = function () {
-        return 'http://okra-demo-app.omardo.com';
+        return 'https://okra-demo-app.omardo.com';
     };
 
     var _emitChildLoadEvent = function () {

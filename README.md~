@@ -81,19 +81,19 @@ Allow others to get a value:
     }).allow('https://github.com');
 
 
-###`set`
+##`set`
     Okra.provide('set', 'pageTitle', function (pageTitle) {
         document.title = pageTitle;
     }).allow('https://facebook.com');
 
     
-###`call`
+##`call`
     Okra.provide('call', 'play', function () {
         video.play();
     }).allow('https://youtube.com');
 
 
-###`event` and `on`
+##`event` and `on`
     var event = Okra.provide('event', 'play')
                      .allow('https://youtube.com');
     event.emit({
