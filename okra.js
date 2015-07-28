@@ -2,9 +2,6 @@
 
 ;(function(win, doc) {
     'use strict';
-
-    // TODO: Support `set` functionality to send data
-    // TODO: Support `call` functionality to denote calling
     // TODO: Support error handling
 
     var _listeners = {};
